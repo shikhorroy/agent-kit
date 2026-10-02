@@ -1,0 +1,19 @@
+{
+  "name": "agent-kit",
+  "owner": {
+    "name": "Shikhor Roy"
+  },
+  "metadata": {
+    "description": "Plugins for AI coding agents by Shikhor Roy"
+  },
+  "plugins": [
+    {
+      "name": "sdd",
+      "source": "./plugins/sdd",
+      "description": "Spec-driven development: Example Mapping specs, acceptance tests, TDD cycles and a pre-commit review",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["example-mapping", "atdd", "tdd", "spec", "bdd"]
+    }
+  ]
+}
