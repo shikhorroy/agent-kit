@@ -44,6 +44,7 @@ Planned.
 |----------------------------------|---------------------------|-------------------------------------------------------|
 | `example-mapping/spec-format.md` | discover, resolve, accept | the one source of the spec's content and format rules |
 | `example-mapping/check-spec.sh`  | discover, resolve, accept | format check; prints nothing when the spec is clean   |
+| `hooks/report-gate.py`           | tdd, accept               | blocks a picker that has no report before it          |
 
 The skills find these files from the plugin's install folder, so the plugin works from any install location. Change a
 spec rule only in `spec-format.md`. Run the check by hand with:
@@ -51,3 +52,15 @@ spec rule only in `spec-format.md`. Run the check by hand with:
 ```bash
 bash plugins/sdd/example-mapping/check-spec.sh docs/specs/<key>.md
 ```
+
+The `report-gate.py` hook runs before every picker (`AskUserQuestion`), while `/sdd:tdd` or `/sdd:accept` is the last
+skill you called. It needs `python3`.
+
+| Skill    | The reply before the picker must have                                                                           |
+|----------|-----------------------------------------------------------------------------------------------------------------|
+| `tdd`    | the Where line and the recommendation line; the rule tree too on the first picker and when a target turns green |
+| `accept` | the Step line and the recommendation line                                                                       |
+
+- The reply can reach the transcript a moment after the hook starts. The hook waits up to 3 seconds for it.
+- If the reply never shows up, the picker goes through.
+- After 2 denials in a row, the picker goes through, so a session never gets stuck.

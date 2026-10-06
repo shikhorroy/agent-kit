@@ -11,7 +11,7 @@
       "name": "sdd",
       "source": "./plugins/sdd",
       "description": "Spec-driven development: Example Mapping specs, acceptance tests, TDD cycles and a pre-commit review",
-      "version": "0.1.4",
+      "version": "0.1.6",
       "category": "development",
       "keywords": ["example-mapping", "atdd", "tdd", "spec", "bdd"]
     }

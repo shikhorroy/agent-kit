@@ -25,10 +25,15 @@ nothing.
 - **Before you check**, say in one line what you review: the rule, and how many files changed.
 - **Verdict first.** The first line of the report is the verdict and the issue counts.
 - **Number every issue** (`#1`, `#2`), so the user can answer "fix 1 and 3".
-- **One issue, one row.** The `Issue` cell says what is wrong in one or two short sentences, and a user decision.
+- **One issue, one row.** The `Issue` cell names the problem in a few words. Its bullet under the table says what is
+  wrong in one or two short sentences, and the user decision.
 - **Labels on their own line.** Markdown joins lines that follow each other into one paragraph. Make each labelled line
   a list item, or put a blank line between them.
 - **Never a prose summary** in place of the report template.
+- **In short** under the verdict: 1 or 2 plain sentences that say what is wrong and what you must decide. The user reads
+  every report to keep the knowledge of the change, so it must be easy to read. Readability never removes a fact.
+- **Short table cells.** A cell holds a few words. The full issue and its decision go in a bullet under the table, with
+  the same number. Long cells break the table in the terminal.
 
 ## Steps
 
@@ -75,15 +80,22 @@ Raise or lower a severity only with a reason in the issue text.
 ```markdown
 **Verdict: Request changes** - 2 critical, 1 warning
 
+**In short:** the loan lasts 14 days, but the spec says 21, so you must choose which one is right. The API also refuses
+a blank member, which no rule asks for.
+
 **Scope:** Rule 01, Must lend an available book to a member for 21 days - 4 files changed (2 production, 2 test)
 
 **Issues**
 
 | # | Severity | Where | Issue | Rule broken |
 |---|---|---|---|---|
-| 1 | critical | `Loan.kt:9` | The loan lasts 14 days. The spec says 21 (Rule 01). Your decision: change the spec or the code | Spec drift |
-| 2 | critical | `LibraryApi.kt:12` | `borrow` refuses a blank member with `NO_MEMBER`. No rule asks for it, and the API holds logic | Invented rule, Architecture |
-| 3 | warning | `BookServiceTest.kt:24` | Asserts only `isNotNull()` | Test quality |
+| 1 | critical | `Loan.kt:9` | 14 days, spec says 21 | Spec drift |
+| 2 | critical | `LibraryApi.kt:12` | refuses a blank member | Invented rule, Architecture |
+| 3 | warning | `BookServiceTest.kt:24` | only `isNotNull()` | Test quality |
+
+- **#1** - The loan lasts 14 days. The spec says 21 (Rule 01). Your decision: change the spec or the code.
+- **#2** - `borrow` refuses a blank member with `NO_MEMBER`. No rule asks for it, and the API layer holds logic.
+- **#3** - The test asserts only `isNotNull()`, so a wrong due date still passes.
 
 **Spec coverage**
 

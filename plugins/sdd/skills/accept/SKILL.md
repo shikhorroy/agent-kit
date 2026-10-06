@@ -35,6 +35,23 @@ breaks.
 - **Labels on their own line.** Markdown joins lines that follow each other into one paragraph. Make each labelled line
   a list item, or put a blank line between them.
 - **Never a prose summary** in place of the report template.
+- **The report starts with the In short line**: 1 or 2 plain sentences that say what was written and what it means.
+  Example: **In short:** the 2 tests for Rule 05 are written. Both fail because the backend does not know the new event
+  types yet, which is the right reason.
+    - The user reads every report to keep the knowledge of what was tested and why. So it must be easy to read.
+    - Readability never removes a fact. Every fact stays in the report, said once.
+- **Short table cells.** A cell holds a few words. A long test name or a long reason goes in a bullet under the table.
+  Long cells break the table in the terminal.
+- **No picker without context.** Every reply that ends in a picker starts with the Step line and ends with the
+  recommendation line. A hook checks this.
+    - It holds for every step, also step 1 ("Tag Rule NN as done") and step 7 (the tag).
+    - A denied picker means this reply had no context: print it, then call the picker again.
+    - Never answer a denial with a numbered text menu, and never tell the user the hook is wrong.
+- **File references.** Name the nested class and every changed file as a repo-relative `path:line`, so the user can
+  click it. Shorten the middle of a long path with `...`, never the file name.
+- **ASCII only** in a rule tree: the words `green`, `RED` and `not verified`, never a check mark, a cross or another
+  symbol. A wide symbol leaves ghost text in the terminal when it scrolls.
+- **Say a fact once.** A file left out of a commit, or a known old warning, goes in one report only. Never repeat it.
 
 ## Loop
 
@@ -49,10 +66,15 @@ read spec → status check → choose rule → read context → confirm entry po
     - A spec example of the rule has no test (`/sdd:tdd` added it): write its test (steps 4 to 8), and do not offer
       `[done]` yet.
     - All green and committed: ask "Tag Rule NN as done (Recommended)" / "Not yet". On yes, make the spec change.
-    - Else: list the failing tests or uncommitted files, say "Finish Rule NN with /sdd:tdd first.", and **stop**.
+    - All green, but not committed: list the uncommitted files of the rule in a compact table. Ask "Commit Rule NN's
+      files now (Recommended)" / "Stop here". On commit: commit only those files, by the project's commit convention,
+      never push. Then ask to tag the rule `[done]` as above. Never stop with only "commit, then run me again".
+    - A test fails: list the failing tests, say "Finish Rule NN with /sdd:tdd first.", and **stop**.
 2. **Choose the rule.** A rule named in the arguments must pass the "Not ready" list. Else rank the ready rules and show
    the top 3 in a compact table in the reply, one column per criterion, then your recommendation. Ask with the picker,
    the best first with "(Recommended)".
+    - Work of the last rule is still uncommitted: add a second question to the same picker call, "Commit the Rule NN
+      work first (Recommended)" / "Go on without a commit".
 3. **Read the context.** Root `CLAUDE.md`, the `CLAUDE.md` of each module the rule touches, the test rules, the
    feature's acceptance test file if it exists, and the code the rule touches today. Read only.
 4. **Confirm the entry point** with the picker before you write.
@@ -76,7 +98,10 @@ read spec → status check → choose rule → read context → confirm entry po
 7. **Classify each result** by the table below. Then ask to tag the rule `[in progress]` as a spec change. If every test
    passed at once, offer `[done]` instead.
 8. **Report, then stop.** Use the template below. End with "Next: /sdd:tdd <first failing test>." If a test was not run,
-   end with "Next: run <command> and confirm the red reason, then /sdd:tdd."
+   end with "Next: run <command> and confirm the red reason, then /sdd:tdd." For a test the user runs:
+    - Give a command that prints only the summary and the names of the failing tests, for example
+      `npx ng test --include='**/loan.spec.ts' --watch=false 2>&1 | grep -E "FAILED|Executed .* of"`.
+    - Say to run the whole test file, not one block of it, and say the counts you expect: "Expect 9 specs, 9 failures."
 
 ## Test results
 
@@ -121,32 +146,43 @@ bash ${CLAUDE_PLUGIN_ROOT}/example-mapping/check-spec.sh <spec>
 
 ## Report template
 
-```markdown
+````markdown
+**In short:** the 2 tests for Rule 01 are written. Test 1 fails because there is no lending API yet, which is the right
+reason. Test 2 needs MongoDB, so it did not run here.
+
 **Rule 01:** Must lend an available book to a member for 21 days - tagged `[in progress]`
 
-**Tests** - `LoansIT` › `LendsAvailableBookFor21Days`
+**Tests** - `LoansIT` › `LendsAvailableBookFor21Days` - `src/test/.../loans/LoansIT.kt:42`
 
-| # | Test | Spec example | Result | Why |
-|---|---|---|---|---|
-| 1 | `the one where member m-1 borrows book b-42 on 2026-10-01` | Example | red | compile error, no `LibraryApi` |
-| 2 | `the one where book b-42 is already lent to member m-2` | Counter-example | not verified | needs MongoDB, no Docker here |
+| # | Test | Spec | Result |
+|---|---|---|---|
+| 1 | m-1 borrows b-42 | Example | RED |
+| 2 | b-42 already lent | Counter-example | not verified |
+
+- **Test 1** - `the one where member m-1 borrows book b-42 on 2026-10-01`. RED: compile error, no `LibraryApi`.
+- **Test 2** - `the one where book b-42 is already lent to member m-2`. Not verified: it needs MongoDB, and Docker does
+  not run here.
 
 **Details I chose**
 
-- Entry point: `LibraryApi.borrow(memberId, bookId, on)`
+- Entry point: `LibraryApi.borrow(memberId, bookId, on)`. Why: it is the module's public edge, and Rule 02 will use the
+  same call.
 - Member `m-1`, book `b-42`, date 2026-10-01
 
 **Files**
 
-- new: `src/test/.../LoansIT.kt`
-- changed: `build.gradle.kts` - test dependency only
+- new: `src/test/.../loans/LoansIT.kt` - the nested class at line 42
+- changed: `build.gradle.kts:31` - test dependency only
 
 **Suggested spec examples:** a member borrows the same book again after returning it.
 
 **Next:** /sdd:tdd the one where member m-1 borrows book b-42 on 2026-10-01.
-```
+````
 
-- `Result` is one word: `red`, `green` or `not verified`. `Why` is the short reason, for a red the missing behaviour.
+- `Test` in the table is a short name of the example, under 30 characters. The full test name goes in its bullet.
+- `Result` is one word or two: `RED`, `green` or `not verified`. The bullet gives the reason: for a RED test the missing
+  behaviour, for a green test why it already passes, for a test not run why it could not run.
+- Every chosen detail that the user did not pick has a **Why** in its bullet.
 - Leave out a section with nothing in it. Keep `Next` the last line.
 
 ## Red flags - stop and go back
@@ -162,3 +198,5 @@ bash ${CLAUDE_PLUGIN_ROOT}/example-mapping/check-spec.sh <spec>
 | "The user is in a hurry, so I pick the rule"             | Show the top 3 and ask                                    |
 | "It fails, so it is red"                                 | Check the reason. A setup error is not red                |
 | "This test belongs next to the other rule's tests"       | Never touch the nested class of another rule              |
+| "The rule is green, the user can commit and call me"     | Offer the commit in the picker, then tag the rule         |
+| "The context is clear, I can just ask"                   | Print the Step line and the context first, then ask       |
