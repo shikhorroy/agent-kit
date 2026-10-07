@@ -1,6 +1,6 @@
 {
   "name": "sdd",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Spec-driven development: Example Mapping specs, acceptance tests, TDD cycles and a pre-commit review",
   "author": {
     "name": "Shikhor Roy"

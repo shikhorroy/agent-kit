@@ -25,14 +25,22 @@ The reply renders as Markdown. The picker (`AskUserQuestion`) shows plain text o
 breaks.
 
 - **Before work starts**, say in one line what you do next, for example: **Now:** Red for piece 2, `LoanService`.
+  A **Now** line names one action. It holds no test status, no finding and no plan: those go in a report.
 - **Before every picker**, print the context in the reply: the report, the table or the diff. Then one line, for
   example: **My recommendation:** Proceed with `LoansController` - one reason. Then call the picker.
 - **The picker question** is one short sentence: no table, no diff, no line break. Each option description is one short
   sentence. Use `preview` only for code or an ASCII layout that the user compares.
 - **A design choice** before the picker: a compact table, one row per option, with what it means and its cost.
 - **A diff** always goes in the reply, in a ` ```diff ` fenced block, so the `+` and `-` lines get color.
+- **Every report starts with the Where line**: the rule, the target's place among the rule's tests, the cycle and the
+  target state. For example: **Where:** Rule 07 🠆 test 1 of 3 🠆 cycle 2 🠆 target red. The user must never guess
+  which rule or which test a report is about.
 - **Each cycle step is its own bullet** with a bold name: **Red**, **Green**, **Refactor**, **Challenge**, **Stop**.
   Markdown joins lines that follow each other into one paragraph, so never write them as plain lines.
+- **Test statuses of the rule always go in the rule tree** (see "Report templates"), never in a sentence such as
+  "Tests 1 and 3 are green".
+- **Keep the Stop bullet readable.** One sub-bullet per test run, with the counts. Never a wide table: long cells
+  break the table in the terminal. Drop no fact: every run, every skip with its reason, and what was not run and why.
 - **Never a prose summary** in place of a template. After an interruption, print the last report again in full.
 
 ## Start of a run
@@ -42,7 +50,10 @@ breaks.
    class: the one whose display name matches the rule text.
 2. **Find the target.** The test named in the arguments. Else the first failing test of that nested class. No rule is
    `[in progress]`: say "Run /sdd:accept first." and **stop**. Every test of the class passes: go to "Rule finished".
-3. **Run the target** (see "Target run") and read where it fails.
+    - **Resume.** Uncommitted changes from an earlier run (`git status`) never mean "continue that cycle". Every run
+      starts here, at step 1. Name the changed files in the start report, under **Found from an earlier run**.
+3. **Run the nested class once** (see "Target run"), then **print the rule tree at once**, before any other step. Read
+   where the target fails.
 4. **Compile step**, only when the target does not compile. Tests in the same source set cannot run either, so this
    comes first.
     - Add only the declarations the target names: types, fields, constructors, function signatures.
@@ -50,7 +61,9 @@ breaks.
     - Run the target. It must compile and fail with "not implemented". Report the step.
 5. **Plan the pieces.** List the missing pieces on the path the failure shows, innermost first: domain, then service,
    then adapter, then the entry point. List only what **this** target needs. A piece for a later test waits for that
-   test. Show the plan with the start template (see "Report templates"). Ask for the first piece with the picker.
+   test. Even a one-piece plan is a plan.
+6. **Print the start report** with the start template (see "Report templates"): the Where line, the target, the rule
+   tree, the status and the plan. No picker before this report. Then ask for the first piece with the picker.
 
 ## Cycle
 
@@ -81,6 +94,10 @@ Red → Green → Refactor → Challenge → Stop (picker) → next cycle
    duplicate, null, negative, invalid state, rounding. Classify each by "Edge cases" below. Write no test for it.
 5. **Stop.** Run the target. Report with the cycle template, then your recommendation line. Then ask with the picker,
    with the options in "Stop options". The picker adds "Other" by itself, for the user's own answer.
+    - The picker question names the rule and the test number, for example "Start test 2 of 3 in Rule 07 as the new
+      target?". Never a vague question such as "How do you want to handle the requisition test?".
+    - Target green: say it plainly. The cycle is done, the target is done, and the next failing test of the same rule
+      becomes the new target. The rule stays `[in progress]` until every test of it passes.
     - Offer "Harden" only for an edge case marked "Harden now" or "Ask the user" in "Edge cases". Else leave it out.
     - Put "Harden" first, with "(Recommended)", when the spec or a real business risk needs that edge case now.
     - "Proceed": the next Red drives the next piece. This is a progress cycle.
@@ -91,14 +108,16 @@ Red → Green → Refactor → Challenge → Stop (picker) → next cycle
 
 ## Stop options
 
-| Target    | Options                                                                                  |
-|-----------|------------------------------------------------------------------------------------------|
-| still red | "Proceed: next piece = `<Class>` (Recommended)", "Harden: `<edge case>`", "Stop here"    |
-| green     | "Next target: `<next failing test>` (Recommended)", "Harden: `<edge case>`", "Stop here" |
+| Target                       | Options                                                                                                           |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| still red                    | "Proceed: next piece = `<Class>` (Recommended)", "Harden: `<edge case>`", "Stop here"                             |
+| green                        | "Next target: test `<n>` of `<total>`, `<next failing test>` (Recommended)", "Harden: `<edge case>`", "Stop here" |
+| green, last test of the rule | "Finish the rule (Recommended)", "Harden: `<edge case>`", "Stop here"                                             |
 
 ## Target run
 
-Run only the target, with the project's command. When it cannot run here (no Docker, a service that cannot start):
+Run only the target, with the project's command. At the start of a run, and when a target turns green, run the
+whole nested class instead, to fill the rule tree. When it cannot run here (no Docker, a service that cannot start):
 
 - Ask with the picker: "Run `<command>` and paste the result in Other." Options: "Skip the target check this cycle",
   "Stop here".
@@ -124,29 +143,41 @@ first."
 
 ## Report templates
 
-**Start of a run** - after steps 1 to 5:
+**Start of a run** - step 6:
 
-```markdown
+````markdown
+**Where:** Rule 03 🠆 test 1 of 2 🠆 cycle 0 🠆 target red
+
 **Target:** `the one where member m-1 borrows book b-42 on 2026-10-01`
+
+```text
+Rule 03 src/test/kotlin/com/example/loans/LoanAcceptanceTest.kt:42 (in progress)
+ ├─ test 1  member m-1 borrows book b-42      ❌ red    ◄ this run's target
+ └─ test 2  member m-1 borrows a second book  ❌ red
+```
 
 **Status:** red - `404 on POST /loans` (run just now). Compile step: not needed.
 
+**Found from an earlier run:** none. Else the changed files, one per line, such as `LoanService.kt` (uncommitted).
+
 **Plan** - missing pieces, innermost first
 
-| # | Piece | What it does |
-|---|---|---|
-| 1 | `Loan` | opens a loan with a due date |
-| 2 | `LoanService` | lends a book that is free |
+| # | Piece             | What it does                    |
+|---|-------------------|---------------------------------|
+| 1 | `Loan`            | opens a loan with a due date    |
+| 2 | `LoanService`     | lends a book that is free       |
 | 3 | `LoansController` | `POST /loans` calls the service |
 
 Left for later rules: refusing a book that is already lent.
 
 **My recommendation:** start with piece 1, `Loan` - it has no dependencies.
-```
+````
 
 **Each cycle** - at the Stop step:
 
 ```markdown
+**Where:** Rule 03 🠆 test 1 of 2 🠆 cycle 2 🠆 target red
+
 **Cycle 2 (progress)** - piece `LoanService`
 
 **Target:** `the one where member m-1 borrows book b-42 on 2026-10-01`
@@ -163,6 +194,33 @@ Left for later rules: refusing a book that is already lent.
 **My recommendation:** Proceed with `LoansController` - it is the last missing piece.
 ```
 
+**Each cycle, target green** - the cycle that turns the target green:
+
+````markdown
+**Where:** Rule 03 🠆 test 1 of 2 🠆 cycle 3 🠆 **target green ✅**
+
+**Cycle 3 (target green)** - piece `LoansController`
+
+- **Red** - wrote `LoansControllerTest`: `posts a loan to the service`. Failed as expected: `404 on POST /loans`.
+- **Green** - added `LoansController.borrow`, which calls `LoanService.borrow`. 1 file changed.
+- **Refactor** - none. Checked: duplication, names, method length, layers - none found.
+- **Challenge** - a missing member id: belongs to Rule 05. Defer.
+- **Stop** - what ran:
+    - unit tests: 9/9 green
+    - target: green
+    - not run: the full suite - your run
+
+```text
+Rule 03 src/test/kotlin/com/example/loans/LoanAcceptanceTest.kt:42 (in progress)
+ ├─ test 1  member m-1 borrows book b-42      ✅ green  ◄ this run's target, done
+ └─ test 2  member m-1 borrows a second book  ❌ red    ◄ next target: 409 on POST /loans
+```
+
+**Next:** test 2 becomes the new target. Rule 03 stays `[in progress]`.
+
+**My recommendation:** Next target: test 2 - it is the only red test left in Rule 03.
+````
+
 - Each bullet says what you did and the result. One or two short sentences.
 - **Red:** the test name and the exact failure message. **Green:** the code change and the file count. **Refactor:**
   what changed, or each check with "none". **Challenge:** each edge case with its "Edge cases" label. **Stop:** the unit
@@ -171,6 +229,15 @@ Left for later rules: refusing a book that is already lent.
   code** (a branch that no test drives, and why it exists).
 - More than one edge case: put them as sub-bullets under **Challenge**.
 - The progress line uses ✅ done and ⬜ to do. A piece added during the run goes in at its place.
+- The cycle header has one state tag: `(progress)`, `(hardening)` or `(target green)`.
+- The **rule tree** lists every test of the nested class, in file order, in a ` ```text ` block. Show it at the start
+  of a run and when a target turns green. In other cycles the Where line is enough.
+    - First line: the rule, then the nested class as a repo-relative `path:line` of its declaration, then the rule
+      tag. A full path lets the user click it in the terminal. A package path alone does not open.
+    - One line per test: `├─` or `└─`, `test <n>`, a short name of the example, ✅ green or ❌ red. Drop "the one
+      where" and keep the name under 45 characters.
+    - Pad the name and the status to one width, so every status and every `◄` sits in one column.
+    - A `◄` note marks only the target and the next target. A red next target ends with its failure message.
 
 ## Red flags - stop and go back
 
@@ -188,3 +255,5 @@ Left for later rules: refusing a book that is already lent.
 | "All tests pass"                                      | Run them. Show the counts                                      |
 | "This edge case is for another rule, but it is quick" | Defer it to that rule                                          |
 | "Green, so I will commit"                             | Never commit. The user commits                                 |
+| "A previous run did this, I will continue"            | Every run starts at step 1 and prints the start report         |
+| "I will just say which tests pass"                    | Print the rule tree. Never a sentence                          |
