@@ -77,6 +77,9 @@ no rule left → final pass on the whole spec → diff → accept → apply + ch
 6. **Apply only after the user accepts.** Then:
     - Renumber later rule headings and every `(Rule NN)` cross-reference. Change them from the highest number down.
     - Keep the file's current style. Do not touch other rules.
+    - Keep every status tag and every **Rework:** item word for word. One exception: on a `[rework]` rule, replace the
+      item "Answer the question about..." with what the answer changed, for example "New example: the one where...".
+      `/sdd:accept` reads the items in a later session.
     - Run the check script below, then give a one-line summary.
     - Name the other parts of the spec this answer affects: a rule with the same term, input or outcome, a Terms row, a
       "How it works today" line, or the Story. Say it in one line: "This answer also affects Rules 07 and 09, and the

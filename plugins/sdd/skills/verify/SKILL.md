@@ -39,8 +39,8 @@ nothing.
 
 1. **Scope.** The uncommitted changes: `git status`, `git diff HEAD`, and the untracked files
    (`git ls-files --others --exclude-standard`). No changes: say so and **stop**. Use git only to read.
-2. **Context.** Root `CLAUDE.md` and the `CLAUDE.md` of each changed module, the spec, its rule tagged `[in progress]`,
-   the feature's acceptance test file, and the API contract if the project has one.
+2. **Context.** Root `CLAUDE.md` and the `CLAUDE.md` of each changed module, the spec, its rule tagged `[in progress]`
+   with its **Rework:** items, the feature's acceptance test file, and the API contract if the project has one.
 3. **Check** every item of "Checks" below. Read the code. Never run a test or a build: the user runs them.
 4. **Report** with the template. A decision that belongs to the user (the spec says 21, the code says 14) is an issue
    that names both values. Never pick one. Take every `file:line` from `grep -n` or a read of the file, never from a
@@ -52,6 +52,7 @@ nothing.
 | Check                | What to look for                                                                                                                                                   | Usual severity |
 |----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
 | Spec coverage        | Every example and counter-example of the `[in progress]` rule has a test method in its nested class, with the same values. Check the whole rule, not only the diff | critical       |
+| Rework               | Every **Rework:** item of the rule is done in the changes, as the item says                                                                                        | critical       |
 | Spec drift           | The same fact with two values in the spec, `CLAUDE.md`, the API contract, the code or a test                                                                       | critical       |
 | Invented rules       | Behaviour in the changed code that no rule or example asks for                                                                                                     | critical       |
 | Test integrity       | An existing test with a changed assertion or expected value, a deleted or disabled test, an edited acceptance test                                                 | critical       |
@@ -62,6 +63,9 @@ nothing.
 | Implementation       | Dead code, `TODO`, swallowed exceptions, long methods, magic values                                                                                                | warning        |
 
 Raise or lower a severity only with a reason in the issue text.
+
+A test change that a **Rework:** item of the rule asks for is expected, but only on the test the item names. Check
+that the change does what the item says. Any other test change stays under Test integrity.
 
 | Severity | Meaning                                                              |
 |----------|----------------------------------------------------------------------|

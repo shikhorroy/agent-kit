@@ -76,6 +76,9 @@ breaks.
 1. **Read the context.** Root `CLAUDE.md` and the `CLAUDE.md` of each module you will touch: the architecture rules, the
    test rules and the test commands. Then the spec, the rule tagged `[in progress]`, and its nested acceptance test
    class: the one whose display name matches the rule text.
+    - A **Rework:** item of the rule names a unit test to fix (`/sdd:regression` wrote it): fix only that test, as the
+      item says, before the first cycle. Run it. It passes: name it in the start report. It fails: that failure is the
+      first Red, and the plan starts with the piece that makes it pass.
 2. **Find the target.** The test named in the arguments. Else the first failing test of that nested class. No rule is
    `[in progress]`: say "Run /sdd:accept first." and **stop**. Every test of the class passes: go to "Rule finished".
     - **Resume.** Uncommitted changes from an earlier run (`git status`) never mean "continue that cycle". Every run
@@ -116,7 +119,8 @@ Red → Green → Refactor → Challenge → Stop (picker) → next cycle
     - A design choice the test does not force (a type, a package, a new interface, a name others will use): ask with the
       picker before you write it.
     - Run this test, then all unit tests. A red elsewhere: fix the production code. Never change what an existing test
-      asserts. A setup line that a new signature breaks (a constructor call) may change.
+      asserts, except a test that a **Rework:** item names. A setup line that a new signature breaks (a constructor
+      call) may change.
 3. **Refactor.** Every cycle. Check production and test code for duplication, unclear names, long methods, nested
    conditionals, magic values and code in the wrong layer. Change only what you find. Run all unit tests and the target.
    Report what changed, or "none" with the reason for each check.
@@ -125,7 +129,7 @@ Red → Green → Refactor → Challenge → Stop (picker) → next cycle
 5. **Stop.** Run the target. Report with the cycle template, then your recommendation line. Then ask with the picker,
    with the options in "Stop options". The picker adds "Other" by itself, for the user's own answer.
     - The picker question names the rule and the test number, for example "Start test 2 of 3 in Rule 07 as the new
-      target?". Never a vague question such as "How do you want to handle the requisition test?".
+      target?". Never a vague question such as "How do you want to handle the overdue test?".
     - Target green: say it plainly. The cycle is done, the target is done, and the next failing test of the same rule
       becomes the new target. The rule stays `[in progress]` until every test of it passes.
     - Offer "Harden" only for an edge case marked "Harden now" or "Ask the user" in "Edge cases". Else leave it out.
@@ -380,7 +384,7 @@ Rule 03 src/test/kotlin/com/example/loans/LoanAcceptanceTest.kt:42 (in progress)
 | "I am in a hurry, I will do the next cycle too"       | Stop after every cycle and ask                                     |
 | "Two tests at once are faster"                        | One unit test per cycle                                            |
 | "Refactor: nothing to do"                             | Run the checklist. Give the reason for each "none"                 |
-| "This old test is wrong, I will adjust it"            | Never change an existing test to pass. Stop and ask                |
+| "This old test is wrong, I will adjust it"            | Only a test that a Rework item names. Else stop and ask            |
 | "The acceptance test is awkward"                      | Never edit it here. Say why, and ask                               |
 | "This setup fix for the acceptance test is obvious"   | Run it in a temporary copy first. Show the result with the diff    |
 | "String or enum, I will just pick one"                | A design choice. Ask with the picker                               |

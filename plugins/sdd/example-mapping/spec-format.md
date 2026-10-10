@@ -69,14 +69,33 @@ Run `check-spec.sh` (next to this file) after every write. It must print nothing
 - Leave out a Counter-example or Questions bullet with no item. Never write "none".
 - Fill prose lines up to 120 characters. Indent a wrapped line to its bullet text: 2 spaces, or 6 in a sub-bullet.
 - No long dashes. Use "-".
-- A rule heading may end with one status tag: `` `[in progress]` `` or `` `[done]` ``. Only `/sdd:accept` sets it, and
-  at most one rule is `[in progress]`. `/sdd:discover` never writes a tag. `/sdd:resolve` keeps every tag as it is, also
-  on a renumber. If it rewrites a tagged rule, it says so in one line: the rule's acceptance tests may no longer match.
+- A rule heading may end with one status tag: `` `[in progress]` ``, `` `[done]` `` or `` `[rework]` ``. At most one
+  rule is `[in progress]`. `/sdd:discover` never writes a tag. `/sdd:resolve` keeps every tag as it is, also on a
+  renumber. If it rewrites a tagged rule, it says so in one line: the rule's acceptance tests may no longer match.
+
+| Tag             | Means                                                  | Set by            |
+|-----------------|--------------------------------------------------------|-------------------|
+| `[in progress]` | its acceptance tests are written, the code is not done | `/sdd:accept`     |
+| `[done]`        | green and committed                                    | `/sdd:accept`     |
+| `[rework]`      | was `[done]`, but `/sdd:regression` found work left    | `/sdd:regression` |
+
+### Rework
+
+`/sdd:regression` tags a `[done]` rule `[rework]` for each fix the user picks, and adds a **Rework:** bullet as the
+last label of the rule. Many rules can be `[rework]` at once: the tags are the fix queue, and they survive the session.
+
+- One item per fix: what to change, then why, with the test name or the new example. Example: "New example: the one
+  where member `m-1` renews book `b-42` twice. The second renewal keeps the old due date."
+- A missed case gets a new **Example:** item in the rule, and a Rework item that names it.
+- A business decision gets a new **Questions:** item, and a Rework item "Answer the question about...".
+- `/sdd:accept` moves one `[rework]` rule to `[in progress]` and keeps the **Rework:** bullet. When it tags the rule
+  `[done]`, it removes the bullet in the same spec change.
+- **Rework:** sits only on a rule tagged `[rework]` or `[in progress]`. `/sdd:resolve` keeps it word for word.
 
 With no ticket, the title is just `# <short feature name>`. `## Terms` and `## How it works today` are optional. Add
 them only when the rules need them. Rule 01 shows one item per label, kept on the label line. Rule 02 shows more than
 one: the label alone, each item a sub-bullet 4 spaces in. Rule 03 shows a table that holds the examples, so no Example
-bullet repeats them.
+bullet repeats them. Rule 04 shows a rule that `/sdd:regression` sent back.
 
 ```markdown
 ---
@@ -121,4 +140,11 @@ type: example-mapping
 | ...   | ...    |
 
 - **Counter-example:** The one where...
+
+### **Rule 04:** Must... `[rework]`
+
+- **Example:**
+    - The one where...
+    - The one where...
+- **Rework:** New example: the one where... Why...
 ```

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Format checks for an Example Mapping spec. Used by /sdd:discover and /sdd:resolve.
+# Format checks for an Example Mapping spec. Used by /sdd:discover, /sdd:resolve, /sdd:accept and
+# /sdd:regression.
 # The rules behind each check are in spec-format.md, next to this file.
 # Prints each hit as "<line>: <problem>". Prints nothing and exits 0 when the spec is clean.
 set -u
@@ -17,6 +18,10 @@ out=$(
         if (!rule) return
         for (l in seen) if (seen[l] > 1) hit(rule_line, "Rule " rule_no " repeats the " l " label")
         if (alone_label != "") check_alone()
+        if (seen["Rework"] && rule_tag != "`[rework]`" && rule_tag != "`[in progress]`")
+            hit(rule_line, "Rule " rule_no " has a Rework label but is not tagged [rework] or [in progress]")
+        if (rule_tag == "`[rework]`" && !seen["Rework"])
+            hit(rule_line, "Rule " rule_no " is tagged [rework] but has no Rework label")
         delete seen
     }
     function check_alone() {
@@ -25,7 +30,10 @@ out=$(
         alone_label = ""
     }
 
-    BEGIN { order["Example"] = 1; order["Counter-example"] = 2; order["Questions"] = 3; title_due = 1 }
+    BEGIN {
+        order["Example"] = 1; order["Counter-example"] = 2; order["Questions"] = 3; order["Rework"] = 4
+        title_due = 1
+    }
 
     # frontmatter: must open the file and hold the spec marker; nothing inside it is checked further
     FNR == 1 && /^---[ ]*$/ { fm = 1; next }
@@ -76,17 +84,18 @@ out=$(
             if (n != expected + 1) hit(FNR, sprintf("rule number %02d, expected %02d", n, expected + 1))
             expected = n
         }
-        rule = 1; rule_line = FNR; rule_no = substr($0, 12, 2); last_order = 0
-        # status tag set by /sdd:accept: one at the end of the heading, at most one rule in progress
+        rule = 1; rule_line = FNR; rule_no = substr($0, 12, 2); last_order = 0; rule_tag = ""
+        # status tag: one at the end of the heading, at most one rule in progress
         if (match($0, /`\[[^]]*\]`[ ]*$/)) {
-            tag = substr($0, RSTART, RLENGTH); sub(/[ ]*$/, "", tag)
+            tag = substr($0, RSTART, RLENGTH); sub(/[ ]*$/, "", tag); rule_tag = tag
             if (tag == "`[in progress]`") { if (++in_progress == 2) hit(FNR, "second rule tagged [in progress]") }
-            else if (tag != "`[done]`") hit(FNR, "unknown status tag " tag "; use `[in progress]` or `[done]`")
-        } else if (index($0, "[in progress]") || index($0, "[done]")) {
+            else if (tag != "`[done]`" && tag != "`[rework]`")
+                hit(FNR, "unknown status tag " tag "; use `[in progress]`, `[done]` or `[rework]`")
+        } else if (index($0, "[in progress]") || index($0, "[done]") || index($0, "[rework]")) {
             hit(FNR, "status tag is not a `[...]` code span at the end of the heading")
         }
     }
-    /^[ ]*[-*] +(Rule [0-9]+|Example|Counter-example|Questions):/ { hit(FNR, "label is not bold") }
+    /^[ ]*[-*] +(Rule [0-9]+|Example|Counter-example|Questions|Rework):/ { hit(FNR, "label is not bold") }
     /^[ ]*[-*] +\*\*Rule [0-9]+:/ { hit(FNR, "rule written as a list item; use a ### heading") }
 
     # tables
@@ -94,15 +103,17 @@ out=$(
     /^\|/ && prev != "" && prev !~ /^\|/ { hit(FNR, "no blank line before the table") }
     prev ~ /^\|/ && $0 != "" && !/^\|/   { hit(FNR, "no blank line after the table") }
 
-    # Example / Counter-example / Questions bullets
-    /^ +[-*] +\*\*(Example|Counter-example|Questions):\*\*/ { hit(FNR, "indented label bullet; start it at column 0") }
+    # Example / Counter-example / Questions / Rework bullets
+    /^ +[-*] +\*\*(Example|Counter-example|Questions|Rework):\*\*/ {
+        hit(FNR, "indented label bullet; start it at column 0")
+    }
     alone_label != "" && /^    [-*] / { alone_items++ }
     alone_label != "" && !/^    [-*] / && !/^      [^ ]/ && !/^$/ { check_alone() }
-    match($0, /^[-*] +\*\*(Example|Counter-example|Questions):\*\*/) {
+    match($0, /^[-*] +\*\*(Example|Counter-example|Questions|Rework):\*\*/) {
         label = $0; sub(/^[-*] +\*\*/, "", label); sub(/:.*/, "", label)
         seen[label]++
         if (order[label] < last_order)
-            hit(FNR, label " is out of order; use Example, Counter-example, Questions")
+            hit(FNR, label " is out of order; use Example, Counter-example, Questions, Rework")
         last_order = order[label]
         rest = substr($0, RLENGTH + 1); gsub(/^ +| +$/, "", rest)
         if (tolower(rest) ~ /^(none|n\/a|-)\.?$/) hit(FNR, label " says \"" rest "\"; leave the bullet out")

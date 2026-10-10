@@ -17,7 +17,7 @@ then makes the tests green.
 **The one principle:** the spec says **what** is tested. You decide only **how**: entry point, ids, dates, field names.
 Every scenario and every expected value comes from the spec, word for word. Read
 `${CLAUDE_PLUGIN_ROOT}/example-mapping/spec-format.md` at the start. It defines the rule format and the status tags
-`[in progress]` and `[done]`, the only memory between sessions.
+`[in progress]`, `[done]` and `[rework]`, the only memory between sessions.
 
 **Violating the letter of these steps is violating their spirit.** "In a hurry" or "just get it done" changes nothing.
 
@@ -63,9 +63,14 @@ read spec → status check → choose rule → read context → confirm entry po
 1. **Status check.** Read the spec from disk and run the check script. If a rule is `[in progress]`, find the nested
    test class whose display name matches the rule text, run it, and check `git status`. If no class matches, say so and
    ask.
-    - A spec example of the rule has no test (`/sdd:tdd` added it): write its test (steps 4 to 8), and do not offer
-      `[done]` yet.
-    - All green and committed: ask "Tag Rule NN as done (Recommended)" / "Not yet". On yes, make the spec change.
+    - A spec example of the rule has no test (`/sdd:tdd` or `/sdd:regression` added it): write its test (steps 4 to
+      8), and do not offer `[done]` yet.
+    - A **Rework:** item names an acceptance test to fix: fix only that test, as the item says, and run the class. A
+      unit test item is for `/sdd:tdd`.
+    - Before you offer `[done]`, check each Rework item in the code: the named test is fixed, the new example has its
+      test. An item not done yet: name it with the skill that does it, and do not offer `[done]`.
+    - All green and committed: ask "Tag Rule NN as done (Recommended)" / "Not yet". On yes, make the spec change. It
+      also removes the rule's **Rework:** bullet.
     - All green, but not committed: list the uncommitted files of the rule in a compact table. Ask "Commit Rule NN's
       files now (Recommended)" / "Stop here". On commit: commit only those files, by the project's commit convention,
       never push. Then ask to tag the rule `[done]` as above. Never stop with only "commit, then run me again".
@@ -73,6 +78,12 @@ read spec → status check → choose rule → read context → confirm entry po
 2. **Choose the rule.** A rule named in the arguments must pass the "Not ready" list. Else rank the ready rules and show
    the top 3 in a compact table in the reply, one column per criterion, then your recommendation. Ask with the picker,
    the best first with "(Recommended)".
+    - A ready `[rework]` rule comes before every untagged rule, and needs no picker. Take the first one in spec order,
+      or the one named in the arguments. The user already picked it in `/sdd:regression`.
+    - Tag it `[in progress]` at once and keep its **Rework:** bullet. Say the change in one line, with no diff and no
+      picker. Then go to step 3.
+    - For a `[rework]` rule, step 4 reuses the nested class and entry point it has. Steps 5 to 8 cover only the
+      examples with no test and the Rework items.
     - Work of the last rule is still uncommitted: add a second question to the same picker call, "Commit the Rule NN
       work first (Recommended)" / "Go on without a commit".
 3. **Read the context.** Root `CLAUDE.md`, the `CLAUDE.md` of each module the rule touches, the test rules, the
@@ -96,7 +107,8 @@ read spec → status check → choose rule → read context → confirm entry po
     - Assert the exact spec values. Never `isNotNull()` where the spec gives a value.
     - Run only this rule's nested class with the project's test command.
 7. **Classify each result** by the table below. Then ask to tag the rule `[in progress]` as a spec change. If every test
-   passed at once, offer `[done]` instead.
+   passed at once, offer `[done]` instead, after the Rework check of step 1. A `[rework]` rule is already
+   `[in progress]` from step 2, so skip the tag question.
 8. **Report, then stop.** Use the template below. End with "Next: /sdd:tdd <first failing test>." If a test was not run,
    end with "Next: run <command> and confirm the red reason, then /sdd:tdd." For a test the user runs:
     - Give a command that prints only the summary and the names of the failing tests, for example
@@ -117,8 +129,11 @@ read spec → status check → choose rule → read context → confirm entry po
 **Not ready.** Never offer a rule when:
 
 - it has a **Questions:** item. Run `/sdd:resolve` first.
-- it already has a status tag.
+- it has `[in progress]` or `[done]`. A `[rework]` rule is ready.
 - its test cannot even be set up before another rule is `[done]`. Example: it reads rows that another rule creates.
+
+No rule is ready: name each open rule and why in one line, for example "Rule 06 has a question: run /sdd:resolve
+first.", and **stop**. Every rule is `[done]`: say "Next: /sdd:regression <spec>.", and **stop**.
 
 **Rank the ready rules:**
 
@@ -135,10 +150,13 @@ read spec → status check → choose rule → read context → confirm entry po
 
 ## Spec change
 
-Never change the spec without the user's OK. Write the old and new text to two files in the scratchpad, run
-`git diff --no-index --no-prefix old.md new.md`, and paste the diff in the reply in a ` ```diff ` block. Drop its
-`diff --git` and `index` header lines. Ask "Accept (Recommended)" / "Discard". After each apply, run the check script.
-It must print nothing. Fix every hit, then run it again.
+Never change the spec without the user's OK. One exception: step 2 tags a `[rework]` rule `[in progress]` with no
+question, because the user already picked it in `/sdd:regression`.
+
+Write the old and new text to two files in the scratchpad, run `git diff --no-index --no-prefix old.md new.md`, and
+paste the diff in the reply in a ` ```diff ` block. Drop its `diff --git` and `index` header lines. Ask "Accept
+(Recommended)" / "Discard". After each apply, run the check script. It must print nothing. Fix every hit, then run it
+again.
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/example-mapping/check-spec.sh <spec>
@@ -200,3 +218,5 @@ reason. Test 2 needs MongoDB, so it did not run here.
 | "This test belongs next to the other rule's tests"       | Never touch the nested class of another rule              |
 | "The rule is green, the user can commit and call me"     | Offer the commit in the picker, then tag the rule         |
 | "The context is clear, I can just ask"                   | Print the Step line and the context first, then ask       |
+| "I will ask before I reopen the `[rework]` rule"         | The user picked it in `/sdd:regression`. Tag it, go on    |
+| "The rule is done, the Rework bullet can stay"           | The `[done]` spec change removes the **Rework:** bullet   |

@@ -2,9 +2,9 @@
 
 A set of plugins for AI coding agents.
 
-| Plugin                       | What it does                                                                                  |
-|------------------------------|-----------------------------------------------------------------------------------------------|
-| [sdd](plugins/sdd/README.md) | spec-driven development: Example Mapping specs, acceptance tests, TDD and a pre-commit review |
+| Plugin                       | What it does                                                                                                      |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| [sdd](plugins/sdd/README.md) | spec-driven development: Example Mapping specs, acceptance tests, TDD, a pre-commit review and a regression check |
 
 ## Supported agents
 

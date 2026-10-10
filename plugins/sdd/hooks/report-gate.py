@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""PreToolUse gate on AskUserQuestion during an /sdd:tdd or /sdd:accept run.
+"""PreToolUse gate on AskUserQuestion during an /sdd:tdd, /sdd:accept or /sdd:regression run.
 
 The picker is denied unless the reply that calls it holds the report:
 - /sdd:tdd: a Where line and a recommendation line; on the first picker of the run, or when the Where line says the
   target is green, also the rule tree.
 - /sdd:accept: a Step line and a recommendation line.
+- /sdd:regression: a Base line and a recommendation line; for the fixes picker (header "Fixes"), also the Verdict line.
+  Only its Base, Uncommitted and Fixes pickers are gated, so a later picker, such as one during a direct fix, goes
+  through.
 
 The reply can reach the transcript a moment after the hook starts, so the hook waits for the message that holds this
 picker. If it never shows up, the picker goes through. Any error lets the picker through: the gate must never lock a
@@ -23,11 +26,14 @@ POLL_SECONDS = 0.1
 WHERE = re.compile(r"\*\*Where:\*\*\s*Rule\s+\d+\b.*\btests?\s+\d+(?:-\d+)?\s+of\s+\d+\b.*\bcycle\s+\d+", re.I)
 STEP = re.compile(r"\*\*Step\s+\d+/\d+\b")
 RECOMMENDATION = re.compile(r"\*\*My recommendation:\*\*\s*\S")
+BASE = re.compile(r"\*\*Base:\*\*\s*\S")
+VERDICT = re.compile(r"\*\*Verdict:\s*(Not ready|Ready with notes|Ready)\*\*", re.I)
 TREE_HEADER = re.compile(r"^Rule\s+\d+\s+\S+:\d+\s", re.M)
 TREE_TEST = re.compile(r"^\s*[|`]-\s*tests?\s+\d+", re.M)
 TARGET_GREEN = re.compile(r"acceptance\s+test:\s*green", re.I)
 COMMAND = re.compile(r"<command-name>/?([^<\s]+)</command-name>")
-SKILLS = {"sdd:tdd": "tdd", "sdd:accept": "accept"}
+SKILLS = {"sdd:tdd": "tdd", "sdd:accept": "accept", "sdd:regression": "regression"}
+REGRESSION_HEADERS = {"base", "uncommitted", "fixes"}
 
 
 def blocks(entry):
@@ -119,6 +125,17 @@ def accept_missing(text):
     return missing
 
 
+def regression_missing(text, headers):
+    missing = []
+    if "fixes" in headers and not VERDICT.search(text):
+        missing.append("the Verdict line, such as **Verdict: Not ready** - 1 critical, 2 warnings")
+    if not BASE.search(text):
+        missing.append("the **Base:** line with the base branch, the merge-base commit and the commit count")
+    if not RECOMMENDATION.search(text):
+        missing.append("the **My recommendation:** line")
+    return missing
+
+
 def main():
     data = json.load(sys.stdin)
     if data.get("tool_name") != "AskUserQuestion":
@@ -148,9 +165,17 @@ def main():
         missing = tdd_missing(text, first=not earlier)
         template = "the start template" if not earlier else "the cycle template"
         where = f"{template} of the sdd:tdd skill"
-    else:
+    elif kind == "accept":
         missing = accept_missing(text)
         where = "the step context of the sdd:accept skill"
+    else:
+        questions = (data.get("tool_input") or {}).get("questions") or []
+        headers = {str(q.get("header", "")).strip().lower() for q in questions if isinstance(q, dict)}
+        if not headers & REGRESSION_HEADERS:
+            return
+        missing = regression_missing(text, headers)
+        where = ("the report template of the sdd:regression skill" if "fixes" in headers
+                 else "step 2 (Base branch) of the sdd:regression skill")
     if not missing:
         return
 
